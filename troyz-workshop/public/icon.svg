@@ -1,0 +1,7 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="128" fill="#07070F"/>
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#FF6B35" stroke-width="14" opacity="0.4"/>
+  <circle cx="256" cy="256" r="180" fill="#14142A" stroke="#FF6B35" stroke-width="6"/>
+  <path d="M256 120 L290 200 L370 210 L310 265 L328 350 L256 305 L184 350 L202 265 L142 210 L222 200 Z" fill="#FF6B35"/>
+  <text x="256" y="410" font-family="Arial, sans-serif" font-weight="900" font-size="62" fill="#FFFFFF" text-anchor="middle" letter-spacing="4">MEW</text>
+</svg>

@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>MEW Voice</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:transparent;color:#fff}
+#app{display:flex;flex-direction:column;height:100%;background:linear-gradient(180deg,#121526 0%,#0a0d18 100%)}
+.chat{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch}
+.msg{display:flex;flex-direction:column;animation:fadeIn 0.2s ease}
+.msg.user{align-items:flex-end}
+.msg.assistant{align-items:flex-start}
+.bubble{max-width:88%;padding:10px 14px;font-size:13px;line-height:1.5;border-radius:18px;word-wrap:break-word}
+.msg.user .bubble{background:linear-gradient(135deg,#FF6B35,#ea580c);color:#fff;font-weight:700;border-bottom-right-radius:4px;box-shadow:0 3px 12px rgba(255,107,53,0.35)}
+.msg.assistant .bubble{background:rgba(255,255,255,0.07);color:#fff;border:1px solid rgba(255,255,255,0.1);border-bottom-left-radius:4px}
+.action-badge{margin-top:6px;font-size:11px;font-weight:800;padding:4px 10px;background:rgba(34,197,94,0.15);border:1px solid #22c55e;color:#4ade80;border-radius:8px;display:inline-flex;align-items:center;gap:4px;animation:scaleIn 0.2s ease}
+.partial{max-width:88%;padding:8px 12px;border-radius:14px;background:rgba(255,107,53,0.18);border:1px dashed #FF6B35;color:rgba(255,180,130,0.95);font-size:12px;font-style:italic}
+.dots{display:flex;align-items:center;gap:6px;padding:6px 2px}
+.dots span{width:7px;height:7px;border-radius:50%;background:#FF6B35;animation:pulse 1s infinite}
+.dots span:nth-child(2){animation-delay:0.2s}
+.dots span:nth-child(3){animation-delay:0.4s}
+.dots .lbl{font-size:12px;color:rgba(255,255,255,0.5);margin-left:4px}
+.controls{padding:14px 16px 20px;background:rgba(10,13,24,0.95);border-top:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;align-items:center;gap:10px}
+.mic-wrap{position:relative;width:76px;height:76px;display:flex;align-items:center;justify-content:center}
+.mic-glow{position:absolute;inset:-8px;border-radius:50%;pointer-events:none;transition:all 0.3s}
+.mic-glow.listening{background:radial-gradient(circle,rgba(255,107,53,0.4) 0%,transparent 70%);animation:pulse 1.6s infinite}
+.mic-glow.speaking{background:radial-gradient(circle,rgba(34,197,94,0.35) 0%,transparent 70%);animation:pulse 1.6s infinite}
+.mic-glow.thinking{background:radial-gradient(circle,rgba(99,102,241,0.35) 0%,transparent 70%)}
+.mic{position:relative;z-index:2;width:70px;height:70px;border-radius:50%;border:none;cursor:pointer;font-size:28px;color:#fff;display:flex;align-items:center;justify-content:center;transition:all 0.2s ease;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.mic.idle{background:linear-gradient(135deg,#FF6B35,#ea580c);box-shadow:0 0 28px rgba(255,107,53,0.6)}
+.mic.listening{background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 0 32px rgba(239,68,68,0.75)}
+.mic.thinking{background:linear-gradient(135deg,#6366f1,#4f46e5);box-shadow:0 0 28px rgba(99,102,241,0.6)}
+.mic.speaking{background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 0 32px rgba(16,185,129,0.75)}
+.mic-label{font-size:12px;font-weight:700;text-align:center;transition:color 0.2s}
+.mic-label.listening{color:#FF6B35}
+.mic-label.thinking{color:#818cf8}
+.mic-label.speaking{color:#22c55e}
+.mic-label.idle{color:rgba(255,255,255,0.5)}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(.88)}50%{opacity:1;transform:scale(1.08)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes scaleIn{from{opacity:0;transform:scale(0.9)}to{opacity:1;transform:scale(1)}}
+
+/* ─── Apple Light Theme for Floating Voice Overlay ─── */
+[data-theme="light"] {
+  color: #0F172A !important;
+}
+[data-theme="light"] #app {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%) !important;
+  color: #0F172A !important;
+}
+[data-theme="light"] .chat {
+  background: transparent !important;
+}
+[data-theme="light"] .msg.assistant .bubble {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+[data-theme="light"] .msg.user .bubble {
+  background: linear-gradient(135deg, #FF9500 0%, #FF5E00 100%) !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(255, 110, 0, 0.28) !important;
+}
+[data-theme="light"] .action-badge {
+  background: rgba(22, 163, 74, 0.12) !important;
+  border: 1px solid #16A34A !important;
+  color: #15803D !important;
+}
+[data-theme="light"] .partial {
+  background: rgba(255, 149, 0, 0.12) !important;
+  border: 1px dashed #FF9500 !important;
+  color: #C2410C !important;
+}
+[data-theme="light"] .dots .lbl {
+  color: #64748B !important;
+}
+[data-theme="light"] .controls {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+[data-theme="light"] .mic-label.idle {
+  color: #64748B !important;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="chat" id="chat"></div>
+  <div class="controls">
+    <div class="mic-wrap">
+      <div class="mic-glow" id="micGlow"></div>
+      <button class="mic idle" id="micBtn" onclick="handleMic()">🎙️</button>
+    </div>
+    <div class="mic-label idle" id="micLabel">Tap the orb to speak</div>
+  </div>
+</div>
+<script>
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t || 'dark');
+}
+window._setTheme = function(t){
+  applyTheme(t);
+};
+try {
+  var savedTheme = (window.MewOverlay && MewOverlay.getTheme) ? MewOverlay.getTheme() : 'dark';
+  applyTheme(savedTheme);
+} catch(e) {}
+
+var phase='idle',lang='ta-IN',msgs=[],apiKey='',busy=false,chatHist=[];
+var chatEl=document.getElementById('chat');
+var micBtn=document.getElementById('micBtn'),micGlow=document.getElementById('micGlow'),micLabel=document.getElementById('micLabel');
+
+// Session memory for contextual multi-turn follow-ups
+var sessionContext = {
+  lastWorker: null,
+  lastCustomer: null,
+  lastAction: null
+};
+
+try{apiKey=MewOverlay.getApiKey();}catch(e){}
+try{
+  var _sv=MewOverlay.loadHistory();
+  if(_sv&&_sv!=='[]'){
+    msgs=JSON.parse(_sv).filter(function(m){return !(m.role==='assistant'&&m.text&&m.text.indexOf('Set your Gemini API key')===0);});
+    for(var m=0;m<msgs.length;m++){renderBubble(msgs[m].role,msgs[m].text,msgs[m].actionExecuted);}
+  }
+}catch(e){}
+
+function setPhase(p){
+  phase=p;
+  micBtn.className='mic '+p;
+  micGlow.className='mic-glow '+p;
+  micLabel.className='mic-label '+p;
+  var L={
+    idle:'Tap the orb to speak',
+    listening:'Listening... speak freely',
+    thinking:'Processing your request...',
+    speaking:'MEW is speaking'
+  };
+  micLabel.textContent=L[p]||'Tap the orb to speak';
+  micBtn.innerHTML=p==='listening'?'⏹️':p==='thinking'?'🧠':p==='speaking'?'🔊':'🎙️';
+}
+
+function renderBubble(role,text,actionBadge){
+  var d=document.createElement('div');
+  d.className='msg '+role;
+  var b=document.createElement('div');
+  b.className='bubble';
+  b.innerHTML=text.replace(/</g,'&lt;').replace(/\n/g,'<br>');
+  d.appendChild(b);
+  if(actionBadge){
+    var ab=document.createElement('div');
+    ab.className='action-badge';
+    ab.textContent='⚡ '+actionBadge;
+    d.appendChild(ab);
+  }
+  chatEl.appendChild(d);
+  chatEl.scrollTop=chatEl.scrollHeight;
+}
+
+function addMsg(role,text,actionBadge){
+  msgs.push({role:role,text:text,actionExecuted:actionBadge});
+  chatHist.push({role:role==='user'?'user':'model',text:text});
+  renderBubble(role,text,actionBadge);
+  try{MewOverlay.saveHistory(JSON.stringify(msgs));}catch(e){}
+}
+
+var partialEl=null;
+function showPartial(t){
+  if(!partialEl){
+    partialEl=document.createElement('div');
+    partialEl.className='partial';
+    chatEl.appendChild(partialEl);
+  }
+  partialEl.textContent=t+'...';
+  chatEl.scrollTop=chatEl.scrollHeight;
+}
+function clearPartial(){if(partialEl){partialEl.remove();partialEl=null;}}
+
+var thinkEl=null;
+function showThink(){
+  if(thinkEl)return;
+  thinkEl=document.createElement('div');
+  thinkEl.className='dots';
+  thinkEl.innerHTML='<span></span><span></span><span></span><span class="lbl">Processing...</span>';
+  chatEl.appendChild(thinkEl);
+  chatEl.scrollTop=chatEl.scrollHeight;
+}
+function clearThink(){if(thinkEl){thinkEl.remove();thinkEl=null;}}
+
+function handleMic(){
+  if(phase==='listening'){
+    try{MewOverlay.stopListening();}catch(e){}
+    setPhase('idle');
+    return;
+  }
+  if(phase==='speaking'){
+    try{MewOverlay.stopSpeaking();}catch(e){}
+    setPhase('idle');
+    return;
+  }
+  if(phase==='thinking'){
+    setPhase('idle');
+    return;
+  }
+  if(phase==='idle')startListening();
+}
+
+function startListening(){
+  try{apiKey=MewOverlay.getApiKey()||apiKey;}catch(e){}
+  busy=false;
+  setPhase('listening');
+  try{MewOverlay.startListening(lang);}catch(e){setPhase('idle');}
+}
+
+// ═══════════════════════════════════════════════════════
+//  HELPER PARSERS & ENTITY EXTRACTORS
+// ═══════════════════════════════════════════════════════
+
+function extractAmount(str){
+  var m=str.match(/(?:₹|rs|inr|ரூபாய்|ரூ|rupees|salary|சம்பளம்)?\s*([0-9]+(?:,[0-9]+)*(?:\.[0-9]+)?)\s*(?:lakh|lakhs|k|thousand|ஆயிரம்|ஆயிரத்தி)?/i);
+  if(str.indexOf('ஆயிரம்')>=0||str.indexOf('thousand')>=0){
+    var d=str.replace(/[^0-9]/g,'');
+    if(d) return parseInt(d,10)*1000;
+  }
+  if(str.indexOf('இலட்சம்')>=0||str.indexOf('லட்சம்')>=0||str.indexOf('lakh')>=0){
+    var d=str.replace(/[^0-9]/g,'');
+    if(d) return parseInt(d,10)*100000;
+  }
+  if(m && m[1]){
+    var num=parseFloat(m[1].replace(/,/g,''));
+    if(!isNaN(num)&&num>0) return num;
+  }
+  var nums=str.match(/[0-9]+/g);
+  if(nums&&nums.length>0){
+    for(var i=0;i<nums.length;i++){
+      var val=parseInt(nums[i],10);
+      if(val>=50 && nums[i].length!==10) return val;
+    }
+  }
+  return 0;
+}
+
+function extractPhone(str){
+  var m=str.match(/[6-9][0-9]{9}/);
+  return m?m[0]:'';
+}
+
+function extractMethod(str){
+  var l=str.toLowerCase();
+  if(l.indexOf('gpay')>=0||l.indexOf('google pay')>=0||l.indexOf('phonepe')>=0||l.indexOf('paytm')>=0||l.indexOf('upi')>=0||l.indexOf('online')>=0) return 'gpay';
+  if(l.indexOf('bank')>=0||l.indexOf('neft')>=0||l.indexOf('imps')>=0||l.indexOf('transfer')>=0) return 'bank';
+  if(l.indexOf('cheque')>=0||l.indexOf('check')>=0) return 'cheque';
+  return 'cash';
+}
+
+function extractRole(str){
+  var l=str.toLowerCase();
+  if(l.indexOf('lathe')>=0||l.indexOf('turning')>=0||l.indexOf('லேத்')>=0) return 'lathe_operator';
+  if(l.indexOf('welder')>=0||l.indexOf('welding')>=0||l.indexOf('வெல்டர்')>=0||l.indexOf('வெல்டிங்')>=0) return 'welder';
+  if(l.indexOf('electrician')>=0||l.indexOf('கரண்ட்')>=0||l.indexOf('எலக்ட்ரீசியன்')>=0||l.indexOf('எலக்ட்ரீஷியன்')>=0) return 'electrician';
+  if(l.indexOf('painter')>=0||l.indexOf('பெயிண்டர்')>=0) return 'painter';
+  if(l.indexOf('helper')>=0||l.indexOf('உதவியாளர்')>=0||l.indexOf('ஹெல்பர்')>=0) return 'helper';
+  if(l.indexOf('supervisor')>=0||l.indexOf('சூப்பர்வைசர்')>=0) return 'supervisor';
+  if(l.indexOf('manager')>=0||l.indexOf('மேனேஜர்')>=0) return 'manager';
+  if(l.indexOf('driver')>=0||l.indexOf('டிரைவர்')>=0) return 'driver';
+  if(l.indexOf('mechanic')>=0||l.indexOf('மெக்கானிக்')>=0) return 'mechanic';
+  return '';
+}
+
+function getRoleLabel(role, isTamil){
+  var mapTa={
+    lathe_operator:'லேத் ஆபரேட்டர்',
+    welder:'வெல்டர்',
+    electrician:'எலக்ட்ரீஷியன்',
+    painter:'பெயிண்டர்',
+    helper:'ஹெல்பர்',
+    supervisor:'சூப்பர்வைசர்',
+    manager:'மேனேஜர்',
+    driver:'டிரைவர்',
+    mechanic:'மெக்கானிக்'
+  };
+  var mapEn={
+    lathe_operator:'Lathe Operator',
+    welder:'Welder',
+    electrician:'Electrician',
+    painter:'Painter',
+    helper:'Helper',
+    supervisor:'Supervisor',
+    manager:'Manager',
+    driver:'Driver',
+    mechanic:'Mechanic'
+  };
+  return isTamil?(mapTa[role]||role):(mapEn[role]||role);
+}
+
+function dispatchWorkshopAction(action){
+  try{
+    if(window.MewOverlay && typeof MewOverlay.executeWorkshopAction==='function'){
+      MewOverlay.executeWorkshopAction(JSON.stringify(action));
+    }
+  }catch(e){
+    console.error('Failed to dispatch workshop action:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  UNIVERSAL CONVERSATIONAL & WORKSHOP OFFLINE BRAIN
+// ═══════════════════════════════════════════════════════
+
+function processLocally(text){
+  var isTamil=lang==='ta-IN';
+  var lower=text.toLowerCase().trim();
+  var amount=extractAmount(lower);
+  var phone=extractPhone(lower);
+  var method=extractMethod(lower);
+  var role=extractRole(lower);
+
+  // ─── 1. General Knowledge, Politics & Current Affairs ───
+  if(lower.indexOf('cm')>=0||lower.indexOf('chief minister')>=0||lower.indexOf('முதலமைச்சர்')>=0||lower.indexOf('முதல்வர்')>=0||lower.indexOf('stalin')>=0||lower.indexOf('ஸ்டாலின்')>=0){
+    return {speech:isTamil?'தமிழ்நாட்டின் தற்போதைய முதலமைச்சர் மாண்புமிகு திரு. மு.க. ஸ்டாலின் (M.K. Stalin) அவர்கள்.':'The Chief Minister of Tamil Nadu is Thiru M.K. Stalin.'};
+  }
+
+  if(lower.indexOf('pm')>=0||lower.indexOf('prime minister')>=0||lower.indexOf('பிரதமர்')>=0||lower.indexOf('modi')>=0||lower.indexOf('மோடி')>=0){
+    return {speech:isTamil?'இந்தியாவின் தற்போதைய பிரதமர் மாண்புமிகு திரு. நரேந்திர மோடி (Narendra Modi) அவர்கள்.':'The Prime Minister of India is Thiru Narendra Modi.'};
+  }
+
+  if(lower.indexOf('governor')>=0||lower.indexOf('ஆளுநர்')>=0){
+    return {speech:isTamil?'தமிழ்நாட்டின் ஆளுநர் திரு. ஆர்.என். ரவி (R.N. Ravi) அவர்கள்.':'The Governor of Tamil Nadu is Thiru R.N. Ravi.'};
+  }
+
+  if(lower.indexOf('president')>=0||lower.indexOf('ஜனாதிபதி')>=0||lower.indexOf('குடியரசு தலைவர்')>=0){
+    return {speech:isTamil?'இந்தியாவின் குடியரசு தலைவர் திருமதி திரௌபதி முர்மு அவர்கள்.':'The President of India is Smt. Droupadi Murmu.'};
+  }
+
+  if(lower.indexOf('நாமக்கல்')>=0||lower.indexOf('namakkal')>=0){
+    return {speech:isTamil?'நாமக்கல் மாவட்டம் ஆழ்துளை கிணறு லாரிகள் (Borewell Rigs), முட்டை உற்பத்தி மற்றும் லாரி பாடி கட்டும் தொழிலுக்கு மிகவும் பிரபலமானது.':'Namakkal is renowned for borewell rig fabrication, poultry farming, and heavy transport industries.'};
+  }
+
+  if(lower.indexOf('திருச்செங்கோடு')>=0||lower.indexOf('tiruchengode')>=0){
+    return {speech:isTamil?'திருச்செங்கோடு போர்வெல் ரிக் தயாரிப்பு, ஆழ்துளை கிணறு சர்வீஸ் மற்றும் அர்த்தநாரீஸ்வரர் மலைக் கோவிலுக்கு புகழ் பெற்றது.':'Tiruchengode is famous for its borewell rig manufacturing units and the historic Arthanareeswarar hill temple.'};
+  }
+
+  if(lower.indexOf('சேலம்')>=0||lower.indexOf('salem')>=0){
+    return {speech:isTamil?'சேலம் மாம்பழம் மற்றும் ஸ்டீல் பிளாண்ட்டுக்கு பெயர் பெற்ற ஒரு முக்கியமான தொழில் நகரம்.':'Salem is well known for its steel industry and famous mangoes.'};
+  }
+
+  if(lower.indexOf('சென்னை')>=0||lower.indexOf('chennai')>=0||lower.indexOf('capital')>=0){
+    return {speech:isTamil?'சென்னை தமிழ்நாட்டின் தலைநகரம் மற்றும் கலாச்சார, மருத்துவ, தொழில் மையமாக விளங்குகிறது.':'Chennai is the capital city of Tamil Nadu.'};
+  }
+
+  // ─── 2. Date / Day / Time ───
+  if(lower.indexOf('date')>=0||lower.indexOf('today')>=0||lower.indexOf('day')>=0||lower.indexOf('time')>=0||lower.indexOf('தேதி')>=0||lower.indexOf('இன்று')>=0||lower.indexOf('நேரம்')>=0||lower.indexOf('கிழமை')>=0){
+    var now=new Date();
+    var dateStr=now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    var timeStr=now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+    return {speech:isTamil?('இன்று '+dateStr+', நேரம் '+timeStr+'.'):('Today is '+dateStr+', and the current time is '+timeStr+'.')};
+  }
+
+  // ─── 3. Bore Rig Facts ───
+  if(lower.indexOf('compressor')>=0||lower.indexOf('psi')>=0||lower.indexOf('cfm')>=0||lower.indexOf('கம்ப்ரசர்')>=0){
+    return {speech:isTamil?'போர்வெல் ரிக் கம்ப்ரசர்கள் பொதுவாக 1100 முதல் 1200 CFM மற்றும் 300 முதல் 350 PSI அழுத்தத்தில் இயங்குகின்றன.':'Bore rig compressors typically operate at 1100-1200 CFM with 300-350 PSI pressure for optimal DTH drilling.'};
+  }
+
+  if(lower.indexOf('hammer')>=0||lower.indexOf('drill')>=0||lower.indexOf('ஹேமர்')>=0||lower.indexOf('ராட்')>=0){
+    return {speech:isTamil?'போர்வெல் ட்ரில்லிங்கிற்கு 4.5 இன்ச், 6 இன்ச் மற்றும் 8 இன்ச் DTH ஹேமர்கள் மற்றும் 15ft, 20ft ட்ரில் ராடுகள் பயன்படுத்தப்படுகின்றன.':'Borewell rigs commonly use 4.5-inch, 6-inch, and 8-inch DTH hammers along with 15ft to 20ft drill rods.'};
+  }
+
+  // ─── 4. Jokes & Chit Chat ───
+  if(lower.indexOf('who are you')>=0||lower.indexOf('யார் நீ')>=0||lower.indexOf('உன் பெயர்')>=0){
+    return {speech:isTamil?'நான் MEW OS — மித்ரா பட்டறை மற்றும் உங்கள் ஸ்மார்ட் AI வாய்ஸ் உதவியாளர்.':'I am MEW OS — your intelligent workshop and personal voice assistant.'};
+  }
+
+  if(lower.indexOf('joke')>=0||lower.indexOf('ஜோக்')>=0||lower.indexOf('சிரிப்பு')>=0){
+    return {speech:isTamil?'ஒரு வாடிக்கையாளர் மெக்கானிக்கிடம் கேட்டாராம்: வண்டி எப்போ ரெடி ஆகும்? மெக்கானிக் சொன்னாராம்: நீங்க ஸ்பேர் பார்ட்ஸ் வாங்குற வேகத்தை பொறுத்தது!':'A mechanic told a customer: Your vehicle will be ready as soon as you finish bringing the spare parts!'};
+  }
+
+  if(lower.indexOf('வணக்கம்')>=0||lower.indexOf('hello')>=0||lower.indexOf('hi')>=0||lower.indexOf('hey')>=0||lower.indexOf('epdi irukka')>=0||lower.indexOf('நலமா')>=0||lower.indexOf('how are you')>=0){
+    return {speech:isTamil?'வணக்கம்! நான் ரொம்ப நல்லா இருக்கேன். உங்களுக்கு உதவ எப்போதும் தயாரா இருக்கேன். சொல்லுங்க!':'Hello! I am doing great and always ready to help you. How can I assist you today?'};
+  }
+
+  if(lower.indexOf('thanks')>=0||lower.indexOf('thank you')>=0||lower.indexOf('நன்றி')>=0){
+    return {speech:isTamil?'ரொம்ப மகிழ்ச்சி! வேற ஏதாவது உதவி வேணுமா?':'You are very welcome! Let me know if you need anything else.'};
+  }
+
+  var isWorkerKey = lower.indexOf('worker')>=0 || lower.indexOf('employee')>=0 || lower.indexOf('பணியாளர்')>=0 || lower.indexOf('ஆட்கள்')>=0 || lower.indexOf('வேலையாள்')>=0 || lower.indexOf('ஆள்')>=0 || lower.indexOf('ஸ்டாஃப்')>=0 || lower.indexOf('staff')>=0;
+  var isSalaryOrRole = lower.indexOf('salary')>=0 || lower.indexOf('சம்பளம்')>=0 || lower.indexOf('role')>=0 || lower.indexOf('பதவி')>=0 || lower.indexOf('கூலி')>=0 || lower.indexOf('wage')>=0 || (role!=='');
+
+  // ─── 5. Worker / Employee: Update Role / Salary (Multi-turn follow up) ───
+  if (isSalaryOrRole && !lower.includes('lathe work') && !lower.includes('turning job') && !lower.includes('expense') && !lower.includes('செலவு')) {
+    var targetWorker = sessionContext.lastWorker ? sessionContext.lastWorker.name : null;
+    
+    var cleanTarget = text.replace(/his|her|their|salary|role|is|for|அவரோட|சம்பளம்|பதவி|ரோல்|ரூபாய்|rs|[0-9,]+/gi, '')
+      .replace(/lathe|operator|welder|mechanic|electrician|helper|driver|supervisor|லேத்|வெல்டர்|மெக்கானிக்/gi, '')
+      .replace(/^[,\s-]+|[,\s-]+$/g, '').trim();
+
+    if (cleanTarget && cleanTarget.length >= 2 && cleanTarget.toLowerCase() !== 'employee' && cleanTarget.toLowerCase() !== 'worker') {
+      targetWorker = cleanTarget;
+    }
+
+    if (targetWorker) {
+      var updateData = { workerName: targetWorker };
+      if (role) updateData.role = role;
+      if (amount > 0) updateData.salary = amount;
+      if (phone) updateData.phone = phone;
+
+      dispatchWorkshopAction({ type: 'update_worker', data: updateData });
+
+      if (sessionContext.lastWorker) {
+        if (role) sessionContext.lastWorker.role = role;
+        if (amount > 0) sessionContext.lastWorker.salary = amount;
+        if (phone) sessionContext.lastWorker.phone = phone;
+      }
+
+      var roleStr = role ? getRoleLabel(role, isTamil) : (sessionContext.lastWorker?.role ? getRoleLabel(sessionContext.lastWorker.role, isTamil) : '');
+      var salStr = amount > 0 ? '₹' + amount.toLocaleString('en-IN') : '';
+
+      var reply = isTamil
+        ? targetWorker + ' விவரங்கள் புதுப்பிக்கப்பட்டன' + (roleStr ? ': பதவி ' + roleStr : '') + (salStr ? ', சம்பளம் ' + salStr : '') + '.'
+        : 'Updated ' + targetWorker + (roleStr ? ' role to ' + roleStr : '') + (salStr ? ' with salary ' + salStr : '') + '.';
+
+      var badge = '👤 ' + targetWorker + (roleStr ? ' - ' + roleStr : '') + (salStr ? ' (' + salStr + ')' : '');
+      return { speech: reply, badge: badge };
+    }
+  }
+
+  // ─── 6. Worker / Employee: Add New Worker ───
+  if (isWorkerKey && (lower.indexOf('add')>=0 || lower.indexOf('create')>=0 || lower.indexOf('new')>=0 || lower.indexOf('சேர்க்க')>=0 || lower.indexOf('பதிவு')>=0 || lower.indexOf('புது')>=0 || lower.indexOf('புதிய')>=0)) {
+    var cleanName = text.replace(/pudhu|new|add|create|worker|employee|staff|பணியாளர்|வேலையாள்|ஆள்|நியூ|புதிய|புது|சேர்க்க|பதிவு|register/gi, '')
+      .replace(/salary|role|சம்பளம்|பதவி|ரூபாய்|rs|[0-9,]+/gi, '')
+      .replace(/lathe|operator|welder|mechanic|electrician|helper|driver|supervisor|லேத்|வெல்டர்|மெக்கானிக்/gi, '')
+      .replace(/[0-9]{10}/g, '')
+      .replace(/^[,\s-]+|[,\s-]+$/g, '').trim();
+
+    var finalRole = role || 'mechanic';
+    var finalSalary = amount > 0 ? amount : 15000;
+
+    if (cleanName && cleanName.length >= 2) {
+      var workerData = {
+        name: cleanName,
+        role: finalRole,
+        salary: finalSalary,
+        phone: phone || ''
+      };
+      dispatchWorkshopAction({ type: 'add_worker', data: workerData });
+      sessionContext.lastWorker = workerData;
+      sessionContext.lastAction = 'add_worker';
+
+      var roleStr = getRoleLabel(finalRole, isTamil);
+      var reply = isTamil
+        ? (amount > 0 || role
+            ? 'பணியாளர் ' + cleanName + ' சேர்க்கப்பட்டார்: பதவி ' + roleStr + ', சம்பளம் ₹' + finalSalary.toLocaleString('en-IN') + '.'
+            : 'பணியாளர் ' + cleanName + ' சேர்க்கப்பட்டார். அவரது பதவி (Role) மற்றும் சம்பளம் சொல்லுங்க?')
+        : (amount > 0 || role
+            ? 'Added employee ' + cleanName + ' as ' + roleStr + ' with salary ₹' + finalSalary.toLocaleString('en-IN') + '.'
+            : 'Added employee ' + cleanName + '! What is his role and salary?');
+
+      var badge = '👤 பணியாளர்: ' + cleanName + ' (' + roleStr + ')';
+      return { speech: reply, badge: badge };
+    } else {
+      return { speech: isTamil ? 'சரிங்க, சேர்க்க வேண்டிய பணியாளர் பெயர் சொல்லுங்க?' : 'Sure, what is the employee name?' };
+    }
+  }
+
+  // ─── 7. Add Customer ───
+  var isCust = lower.indexOf('customer')>=0 || lower.indexOf('வாடிக்கையாளர்')>=0 || lower.indexOf('கஸ்டமர்')>=0 || lower.indexOf('client')>=0;
+  var isAdvance = lower.indexOf('advance')>=0 || lower.indexOf('அட்வான்ஸ்')>=0 || lower.indexOf('varavu')>=0 || lower.indexOf('வரவு')>=0 || lower.indexOf('paid')>=0 || lower.indexOf('payment')>=0;
+
+  if (isCust && !isAdvance) {
+    var cleanName = text.replace(/pudhu|new|add|customer|client|வாடிக்கையாளர்|கஸ்டமர்|நியூ|புதிய|புது|சேர்க்க|பதிவு|register|create/gi, '')
+      .replace(/(?:phone|mobile|போன்|எண்|number)\s*[0-9]+/gi, '')
+      .replace(/[0-9]{10}/g, '')
+      .replace(/namakkal|salem|chennai|tiruchengode|erode/gi, '')
+      .replace(/^[,\s-]+|[,\s-]+$/g, '').trim();
+
+    if (cleanName && cleanName.length >= 2) {
+      var actionData = { name: cleanName, phone: phone || '9999999999', address: lower.indexOf('salem')>=0?'Salem':lower.indexOf('namakkal')>=0?'Namakkal':'' };
+      dispatchWorkshopAction({ type: 'add_customer', data: actionData });
+      sessionContext.lastCustomer = actionData;
+      sessionContext.lastAction = 'add_customer';
+
+      var badge = '👤 வாடிக்கையாளர்: ' + cleanName;
+      var reply = isTamil
+        ? 'வாடிக்கையாளர் ' + cleanName + (phone ? ' (போன்: ' + phone + ')' : '') + ' பதிவு செய்யப்பட்டார்.'
+        : 'Customer ' + cleanName + (phone ? ' with phone ' + phone : '') + ' registered successfully.';
+      return { speech: reply, badge: badge };
+    } else {
+      return { speech: isTamil ? 'சரிங்க, வாடிக்கையாளர் பெயர் மற்றும் போன் நம்பர் சொல்லுங்க?' : 'Sure, what is the customer name and phone number?' };
+    }
+  }
+
+  // ─── 8. Customer Advance ───
+  if (isAdvance && !isSalaryOrRole && lower.indexOf('selavu')<0 && lower.indexOf('expense')<0) {
+    var clean = text.replace(/advance|advans|adv|varavu|வரவு|அட்வான்ஸ்|paid|payment|gpay|cash|upi|[0-9,]+/gi, '')
+      .replace(/^[,\s-]+|[,\s-]+$/g, '').trim();
+    var custName = clean.length > 2 ? clean : (sessionContext.lastCustomer ? sessionContext.lastCustomer.name : 'Customer');
+
+    var regMatch = text.match(/[a-zA-Z]{2}\s*[0-9]{1,2}\s*[a-zA-Z]{0,3}\s*[0-9]{4}/i);
+    var regNo = regMatch ? regMatch[0].toUpperCase() : '';
+
+    if (amount > 0) {
+      dispatchWorkshopAction({
+        type: 'customer_advance',
+        data: {
+          customerName: custName,
+          vehicleRegNo: regNo,
+          amount: amount,
+          method: method,
+          note: 'Advance via voice'
+        }
+      });
+      var badge = '💰 அட்வான்ஸ் வரவு: ₹' + amount.toLocaleString('en-IN') + ' (' + custName + ')';
+      var reply = isTamil
+        ? custName + ' அட்வான்ஸ் ₹' + amount.toLocaleString('en-IN') + ' ' + method.toUpperCase() + ' மூலம் வரவு வைக்கப்பட்டது.'
+        : 'Recorded ₹' + amount.toLocaleString('en-IN') + ' advance from ' + custName + ' via ' + method.toUpperCase() + '.';
+      return { speech: reply, badge: badge };
+    } else {
+      return { speech: isTamil ? 'அட்வான்ஸ் பதிய எந்த வாடிக்கையாளர் மற்றும் எவ்வளவு தொகை என்று சொல்லுங்க?' : 'Please specify the customer name and advance amount.' };
+    }
+  }
+
+  // ─── 9. Workshop Expense (Lathe, Diesel, Welding, Hose) ───
+  if (!isSalaryOrRole && !isWorkerKey && (lower.indexOf('diesel')>=0 || lower.indexOf('டீசல்')>=0 || lower.indexOf('expense')>=0 || lower.indexOf('செலவு')>=0 || lower.indexOf('selavu')>=0 || lower.indexOf('lathe')>=0 || lower.indexOf('welding')>=0 || lower.indexOf('வெல்டிங்')>=0 || lower.indexOf('லேத்')>=0 || lower.indexOf('hose')>=0 || lower.indexOf('ஹோஸ்')>=0 || lower.indexOf('turning')>=0)) {
+    var expType = 'lathe_work';
+    if (lower.indexOf('diesel')>=0 || lower.indexOf('டீசல்')>=0) expType = 'diesel_fuel';
+    else if (lower.indexOf('welding')>=0 || lower.indexOf('வெல்டிங்')>=0) expType = 'welding';
+    else if (lower.indexOf('hose')>=0 || lower.indexOf('ஹோஸ்')>=0) expType = 'hydraulic_hose';
+
+    // Extract vehicle registration number if present
+    var regMatch = text.match(/[a-zA-Z]{2}\s*[0-9]{1,2}\s*[a-zA-Z]{0,3}\s*[0-9]{4}/i);
+    var regNo = regMatch ? regMatch[0].toUpperCase() : '';
+
+    var cleanForCust = text.replace(/lathe|turning|welding|diesel|hose|expense|selavu|செலவு|டீசல்|லேத்|வெல்டிங்|ஹோஸ்|customer|வாடிக்கையாளர்|கஸ்டமர்|work|வேலை|ரூபாய்|rs|[0-9,]+/gi, '')
+      .replace(/[a-zA-Z]{2}\s*[0-9]{1,2}\s*[a-zA-Z]{0,3}\s*[0-9]{4}/gi, '')
+      .replace(/^[,\s-]+|[,\s-]+$/g, '').trim();
+
+    var custName = '';
+    if (cleanForCust.length >= 2 && cleanForCust.toLowerCase() !== 'vehicle' && cleanForCust.toLowerCase() !== 'workshop') {
+      custName = cleanForCust;
+    } else if (sessionContext.lastCustomer) {
+      custName = sessionContext.lastCustomer.name;
+    }
+
+    if (amount > 0) {
+      dispatchWorkshopAction({
+        type: 'vehicle_expense',
+        data: {
+          customerName: custName,
+          vehicleRegNo: regNo,
+          expenseType: expType,
+          amount: amount,
+          method: method,
+          description: text
+        }
+      });
+      var badge = '🛠️ செலவு பதிவு: ₹' + amount.toLocaleString('en-IN') + (custName ? ' (' + custName + ')' : '');
+      var reply = isTamil
+        ? (custName ? custName + ' வண்டிக்கு ' : '') + 'செலவு ₹' + amount.toLocaleString('en-IN') + ' கணக்கில் பதியப்பட்டது.'
+        : 'Recorded ' + (custName ? custName + '\'s ' : '') + 'vehicle expense of ₹' + amount.toLocaleString('en-IN') + ' successfully.';
+      return { speech: reply, badge: badge };
+    } else {
+      return { speech: isTamil ? 'செலவு பதிய என்ன வேலை மற்றும் தொகை எவ்வளவு என்று சொல்லுங்க?' : 'Please tell me what work was done and the expense amount.' };
+    }
+  }
+
+  // ─── 10. Worker Attendance ───
+  if (lower.indexOf('present')>=0 || lower.indexOf('absent')>=0 || lower.indexOf('ஆப்சன்ட்')>=0 || lower.indexOf('பிரசண்ட்')>=0 || lower.indexOf('லீவு')>=0 || lower.indexOf('attendance')>=0 || lower.indexOf('வருகை')>=0) {
+    var status = (lower.indexOf('absent')>=0 || lower.indexOf('ஆப்சன்ட்')>=0 || lower.indexOf('லீவு')>=0) ? 'absent' : 'present';
+    var cleanW = text.replace(/present|absent|ஆப்சன்ட்|பிரசண்ட்|லீவு|attendance|வருகை|today|innaiku|இன்று/gi, '').replace(/^[,\s-]+|[,\s-]+$/g, '').trim();
+    var wName = cleanW.length >= 2 ? cleanW : (sessionContext.lastWorker ? sessionContext.lastWorker.name : 'Worker');
+
+    dispatchWorkshopAction({ type: 'worker_attendance', data: { workerName: wName, status: status } });
+    var badge = '📋 வருகை: ' + wName + ' (' + status + ')';
+    var reply = isTamil
+      ? wName + ' இன்று ' + (status === 'present' ? 'பிரசண்ட்' : 'ஆப்சன்ட்') + ' என்று குறிக்கப்பட்டது.'
+      : 'Marked ' + wName + ' as ' + status + ' for today.';
+    return { speech: reply, badge: badge };
+  }
+
+  // ─── 11. Suppliers ───
+  if (lower.indexOf('supplier')>=0 || lower.indexOf('சப்ளையர்')>=0 || lower.indexOf('vendor')>=0) {
+    var numM = text.match(/[0-9,]+/);
+    var amt = numM ? parseInt(numM[0].replace(/,/g, '')) : 0;
+    var cleanS = text.replace(/supplier|சப்ளையர்|vendor|add|paid|payment|பணம்|சேர்|சேர்க்க|ரூபாய்|rs|[0-9,]+/gi, '').replace(/^[,\s-]+|[,\s-]+$/g, '').trim();
+    var sName = cleanS.length >= 2 ? cleanS : 'Vendor';
+
+    if (amt > 0 && (lower.indexOf('paid')>=0 || lower.indexOf('payment')>=0 || lower.indexOf('பணம்')>=0 || lower.indexOf('கொடுத்த')>=0)) {
+      dispatchWorkshopAction({ type: 'pay_supplier', data: { supplierName: sName, amount: amt, method: 'cash' } });
+      var badge = '🏪 சப்ளையர் பணம்: ₹' + amt.toLocaleString('en-IN') + ' (' + sName + ')';
+      return { speech: isTamil ? sName + ' சப்ளையருக்கு ₹' + amt.toLocaleString('en-IN') + ' கொடுக்கப்பட்டது பதியப்பட்டது.' : 'Recorded payment of ₹' + amt.toLocaleString('en-IN') + ' to supplier ' + sName + '.', badge: badge };
+    } else {
+      dispatchWorkshopAction({ type: 'add_supplier', data: { name: sName, phone: '', address: '' } });
+      var badge = '🏪 சப்ளையர்: ' + sName;
+      return { speech: isTamil ? sName + ' என்ற புதிய சப்ளையர் வெற்றிகரமாக சேர்க்கப்பட்டார்.' : 'Added new supplier ' + sName + ' successfully.', badge: badge };
+    }
+  }
+
+  // ─── 12. Stock / Spare Parts ───
+  if (lower.indexOf('stock')>=0 || lower.indexOf('ஸ்டாக்')>=0 || lower.indexOf('part')>=0 || lower.indexOf('உதிரிபாக')>=0 || lower.indexOf('item')>=0 || lower.indexOf('பொருட்கள்')>=0) {
+    var numM = text.match(/[0-9,]+/);
+    var qty = numM ? parseInt(numM[0].replace(/,/g, '')) : 1;
+    var cleanP = text.replace(/stock|ஸ்டாக்|part|parts|உதிரிபாக|item|பொருட்கள்|add|சேர்|சேர்க்க|count|எண்ணிக்கை|[0-9,]+/gi, '').replace(/^[,\s-]+|[,\s-]+$/g, '').trim();
+    var pName = cleanP.length >= 2 ? cleanP : 'Spare Part';
+
+    dispatchWorkshopAction({ type: 'add_part', data: { name: pName, qty: qty, purchasePrice: 0, sellingPrice: 0, unit: 'Piece' } });
+    var badge = '📦 உதிரிபாகம்: ' + pName + ' (' + qty + ')';
+    return { speech: isTamil ? pName + ' உதிரிபாகம் ஸ்டாக்கில் ' + qty + ' அளவு சேர்க்கப்பட்டது.' : 'Added ' + qty + ' units of ' + pName + ' to stock.', badge: badge };
+  }
+
+  // ─── 13. Finance / Workshop Overview ───
+  if (lower.indexOf('வருமானம்')>=0 || lower.indexOf('revenue')>=0 || lower.indexOf('collection')>=0 || lower.indexOf('income')>=0 || lower.indexOf('வரவு')>=0 || lower.indexOf('லாபம்')>=0) {
+    return { speech: isTamil ? 'பட்டறை நேரடி வரவு மற்றும் கணக்கு விவரங்களை மணி (Money) பக்கத்தில் பார்க்கலாம்.' : 'You can view total workshop collections and balances in the Money tab.' };
+  }
+
+  if (lower.indexOf('வண்டி')>=0 || lower.indexOf('bore')>=0 || lower.indexOf('rig')>=0 || lower.indexOf('போர்')>=0) {
+    return { speech: isTamil ? 'பட்டறையில் பதிவு செய்யப்பட்ட போர் வண்டிகள் மற்றும் வேலை விவரங்களை வண்டிகள் பக்கத்தில் காணலாம்.' : 'You can view all registered bore rig vehicles in the Vehicles tab.' };
+  }
+
+  // Friendly Open Conversational response
+  return {
+    speech: isTamil
+      ? 'வணக்கம்! பட்டறையில் பணியாளர் வருகை பதியவா, செலவு/அட்வான்ஸ் சேர்க்கவா, சப்ளையர் அல்லது ஸ்டாக் கணக்கு பதியவா? சொல்லுங்க.'
+      : 'How can I assist you? I can record attendance, log vehicle expenses, manage suppliers, update stocks, or answer questions.'
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+//  GEMINI CLOUD AGENT WITH FULL FALLBACK TO LOCAL ENGINE
+// ═══════════════════════════════════════════════════════
+
+var MODELS=['gemini-3.5-flash-lite','gemini-3.7-flash','gemini-3.1-flash-lite','gemini-flash-latest','gemini-flash-lite-latest','gemini-3-flash-preview','gemini-3.5-flash','gemini-3.6-flash'];
+var GEMINI_URL='https://generativelanguage.googleapis.com/v1beta/models/';
+
+function buildSystemPrompt(){
+  var isTamil=lang==='ta-IN';
+  var workshopCtx='';
+  try{workshopCtx=MewOverlay.getWorkshopContext()||'';}catch(e){}
+  var lastCtx = sessionContext.lastWorker ? '\nActive context: Last added/referenced worker is ' + sessionContext.lastWorker.name + ' (role: ' + sessionContext.lastWorker.role + ', salary: ' + sessionContext.lastWorker.salary + ').' : '';
+  return 'You are MEW OS \u2014 a brilliant, friendly, all-knowing conversational AI voice assistant (like Siri / ChatGPT Voice / JARVIS) for Mithra Engineering Works (MEW), a bore rig workshop in Tamil Nadu, India.\n\nYour capabilities:\n1. Universal Knowledge: You can answer ANY question the user asks \u2014 general knowledge, Tamil Nadu current affairs & politics (e.g. Chief Minister M.K. Stalin, Prime Minister Narendra Modi), weather, math, science, history, borewell rig engineering, advice, casual chit-chat.\n2. Autonomous Workshop Operations: You can also manage workshop data (customers, advances, expenses, employees, attendance, bore rigs, suppliers, stock & inventory).\n\nConversation style:\n- Natural, warm, friendly, and human.\n- '+(isTamil?'Speak naturally in Tamil (or conversational Tamil/Tanglish).':'Speak in clear, friendly conversational English.')+'\n- Keep answers concise (1-2 sentences). Spoken aloud over audio.\n- DO NOT use bullet points, Markdown bold/italic, asterisks, or formatting symbols.\n\nOUTPUT FORMAT:\nAlways return valid JSON ONLY with this schema:\n{"speech":"Spoken sentence to reply to the user aloud","action":null | {"type":"add_customer | update_customer | customer_advance | vehicle_expense | worker_attendance | add_worker | update_worker | add_vehicle | add_supplier | pay_supplier | add_part | adjust_stock","data":{...}}}\n\nAction Data Schemas:\n- add_worker: {"name":"string","role":"lathe_operator | welder | mechanic | electrician | painter | helper | supervisor | manager | driver","salary":number,"phone":"string"}\n- update_worker: {"workerName":"string","role":"string","salary":number,"phone":"string"}\n- add_customer: {"name":"string","phone":"string","address":"string"}\n- update_customer: {"customerName":"string","phone":"string","address":"string"}\n- customer_advance: {"customerName":"string","vehicleRegNo":"string","amount":number,"method":"string","note":"string"}\n- vehicle_expense: {"customerName":"string","vehicleRegNo":"string","expenseType":"lathe_work | welding | diesel_fuel | hydraulic_hose | other","amount":number,"method":"string","description":"string"}\n- worker_attendance: {"workerName":"string","status":"present | absent | half_day"}\n- add_vehicle: {"customerName":"string","regNo":"string","rigType":"string"}\n- add_supplier: {"name":"string","phone":"string","address":"string"}\n- pay_supplier: {"supplierName":"string","amount":number,"method":"string","note":"string"}\n- add_part: {"name":"string","qty":number,"purchasePrice":number,"sellingPrice":number,"unit":"string"}\n- adjust_stock: {"partName":"string","qty":number,"movementType":"purchase | adjustment | used_in_job"}\n\n'+lastCtx+'\n'+workshopCtx;
+}
+
+async function askAI(text){
+  var key=apiKey&&apiKey.length>20?apiKey:'';
+  if(key){
+    var sys=buildSystemPrompt();
+    var contents=[];
+    var histSlice=chatHist.slice(-6);
+    for(var h=0;h<histSlice.length;h++){contents.push({role:histSlice[h].role,parts:[{text:histSlice[h].text}]});}
+    contents.push({role:'user',parts:[{text:text}]});
+
+    for(var i=0;i<MODELS.length;i++){
+      try{
+        var body={contents:contents,generationConfig:{temperature:0.6,maxOutputTokens:1024,thinkingConfig:{thinkingBudget:0},responseMimeType:'application/json'},system_instruction:{parts:[{text:sys}]}};
+        var ctrl=new AbortController();var tid=setTimeout(function(){ctrl.abort();},12000);
+        var r=await fetch(GEMINI_URL+MODELS[i]+':generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctrl.signal});
+        clearTimeout(tid);
+        if(!r.ok){
+          var ej={};try{ej=await r.json();}catch(x){}
+          var em=(ej&&ej.error&&ej.error.message)||'';
+          if(r.status===404||em.indexOf('not found')>=0||em.indexOf('not available')>=0) continue;
+          if(em.indexOf('thinkingConfig')>=0||em.indexOf('invalid argument')>=0){
+            delete body.generationConfig.thinkingConfig;
+            body.generationConfig.maxOutputTokens=2048;
+            var r2=await fetch(GEMINI_URL+MODELS[i]+':generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+            if(r2.ok){
+              var d2=await r2.json();
+              if(d2.candidates&&d2.candidates[0]&&d2.candidates[0].content&&d2.candidates[0].content.parts&&d2.candidates[0].content.parts[0]){
+                var raw2=d2.candidates[0].content.parts[0].text;
+                try{
+                  var parsed2=JSON.parse(raw2);
+                  if(parsed2.action && parsed2.action.type){
+                    dispatchWorkshopAction(parsed2.action);
+                    if(parsed2.action.type==='add_worker'||parsed2.action.type==='update_worker'){
+                      sessionContext.lastWorker={name:parsed2.action.data.name||parsed2.action.data.workerName,role:parsed2.action.data.role,salary:parsed2.action.data.salary};
+                    }
+                    var bName=parsed2.action.type==='add_customer'?'👤 வாடிக்கையாளர்: '+(parsed2.action.data.name||'')
+                      :parsed2.action.type==='add_worker'?'👤 பணியாளர்: '+(parsed2.action.data.name||'')
+                      :parsed2.action.type==='update_worker'?'👤 புதுப்பிக்கப்பட்டது: '+(parsed2.action.data.workerName||'')
+                      :parsed2.action.type==='customer_advance'?'💰 அட்வான்ஸ்: ₹'+(parsed2.action.data.amount||'')+(parsed2.action.data.customerName?' ('+parsed2.action.data.customerName+')':'')
+                      :parsed2.action.type==='vehicle_expense'?'🛠️ செலவு: ₹'+(parsed2.action.data.amount||'')+(parsed2.action.data.customerName?' ('+parsed2.action.data.customerName+')':'')
+                      :parsed2.action.type==='worker_attendance'?'📋 வருகை: '+(parsed2.action.data.workerName||'')+' ('+(parsed2.action.data.status||'present')+')'
+                      :parsed2.action.type==='add_supplier'?'🏪 சப்ளையர்: '+(parsed2.action.data.name||'')
+                      :parsed2.action.type==='pay_supplier'?'🏪 சப்ளையர் பணம்: ₹'+(parsed2.action.data.amount||'')
+                      :parsed2.action.type==='add_part'?'📦 உதிரிபாகம்: '+(parsed2.action.data.name||'')
+                      :parsed2.action.type==='adjust_stock'?'📦 ஸ்டாக்: '+(parsed2.action.data.partName||'')
+                      :'⚡ '+parsed2.action.type;
+                    return {speech:parsed2.speech||raw2,badge:bName};
+                  }
+                  if(parsed2.speech) return {speech:parsed2.speech};
+                }catch(pe){}
+                return {speech:raw2};
+              }
+            }
+          }
+          if(r.status===403||r.status===401) break;
+          continue;
+        }
+        var d=await r.json();
+        if(d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0]){
+          var raw=d.candidates[0].content.parts[0].text;
+          try{
+            var parsed=JSON.parse(raw);
+            if(parsed.action && parsed.action.type){
+              dispatchWorkshopAction(parsed.action);
+              if(parsed.action.type==='add_worker'||parsed.action.type==='update_worker'){
+                sessionContext.lastWorker={name:parsed.action.data.name||parsed.action.data.workerName,role:parsed.action.data.role,salary:parsed.action.data.salary};
+              }
+              var bName=parsed.action.type==='add_customer'?'👤 வாடிக்கையாளர்: '+(parsed.action.data.name||'')
+                :parsed.action.type==='add_worker'?'👤 பணியாளர்: '+(parsed.action.data.name||'')
+                :parsed.action.type==='update_worker'?'👤 புதுப்பிக்கப்பட்டது: '+(parsed.action.data.workerName||'')
+                :parsed.action.type==='customer_advance'?'💰 அட்வான்ஸ்: ₹'+(parsed.action.data.amount||'')+(parsed.action.data.customerName?' ('+parsed.action.data.customerName+')':'')
+                :parsed.action.type==='vehicle_expense'?'🛠️ செலவு: ₹'+(parsed.action.data.amount||'')+(parsed.action.data.customerName?' ('+parsed.action.data.customerName+')':'')
+                :parsed.action.type==='worker_attendance'?'📋 வருகை: '+(parsed.action.data.workerName||'')+' ('+(parsed.action.data.status||'present')+')'
+                :parsed.action.type==='add_supplier'?'🏪 சப்ளையர்: '+(parsed.action.data.name||'')
+                :parsed.action.type==='pay_supplier'?'🏪 சப்ளையர் பணம்: ₹'+(parsed.action.data.amount||'')
+                :parsed.action.type==='add_part'?'📦 உதிரிபாகம்: '+(parsed.action.data.name||'')
+                :parsed.action.type==='adjust_stock'?'📦 ஸ்டாக்: '+(parsed.action.data.partName||'')
+                :'⚡ '+parsed.action.type;
+              return {speech:parsed.speech||raw,badge:bName};
+            }
+            if(parsed.speech) return {speech:parsed.speech};
+          }catch(pe){}
+          return {speech:raw};
+        }
+        continue;
+      }catch(ex){if(i===MODELS.length-1)break;}
+    }
+  }
+
+  // Fallback seamlessly to context-aware local conversational engine (zero error messages!)
+  return processLocally(text);
+}
+
+function handleResult(text){
+  clearPartial();
+  if(!text||!text.trim()) return;
+  addMsg('user',text.trim());
+  setPhase('thinking');
+  showThink();
+  askAI(text.trim()).then(function(res){
+    clearThink();
+    var speechText=typeof res==='string'?res:(res.speech||'');
+    var badge=typeof res==='object'?res.badge:undefined;
+    addMsg('assistant',speechText,badge);
+    setPhase('speaking');
+    try{
+      MewOverlay.speak(speechText,lang);
+    }catch(e){
+      setTimeout(function(){setPhase('idle');},500);
+    }
+  }).catch(function(){
+    clearThink();
+    var fallback=processLocally(text.trim());
+    addMsg('assistant',fallback.speech,fallback.badge);
+    setPhase('speaking');
+    try{MewOverlay.speak(fallback.speech,lang);}catch(e){setPhase('idle');}
+  });
+}
+
+window._setPhase=function(p){setPhase(p);};
+window._setLang=function(l){lang=l;};
+window._onResult=function(t){
+  if(!busy){
+    busy=true;
+    handleResult(t);
+    setTimeout(function(){busy=false;},500);
+  }
+};
+window._onPartial=function(t){showPartial(t);};
+window._onError=function(e){clearPartial();clearThink();if(phase!=='idle')setPhase('idle');};
+window._onEvent=function(e){if(e==='onEnd'){clearPartial();if(phase==='listening')setPhase('idle');}};
+window._onTtsDone=function(){if(phase==='speaking'){setPhase('idle');setTimeout(startListening,400);}};
+</script>
+</body>
+</html>

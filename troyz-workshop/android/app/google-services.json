@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "540889157966",
+    "project_id": "mew-os",
+    "storage_bucket": "mew-os.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:540889157966:android:ae15cfaa2f8254829f8e1f",
+        "android_client_info": {
+          "package_name": "com.mew.workshop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqoRG--iC4DPPygsEunK9qNW2S0JyUWlM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
